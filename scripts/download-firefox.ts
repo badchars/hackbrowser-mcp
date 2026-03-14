@@ -1,0 +1,218 @@
+/**
+ * Download Firefox Developer Edition from Mozilla CDN.
+ * Developer Edition is required because it respects xpinstall.signatures.required = false,
+ * allowing our unsigned extension to load.
+ *
+ * Supports macOS (aarch64/x64) and Linux (x64).
+ * Extracts to ./firefox/ directory.
+ */
+
+import { existsSync, mkdirSync, readdirSync } from "fs";
+import { join, dirname } from "path";
+
+const PROJECT_ROOT = join(dirname(import.meta.dir));
+const FIREFOX_DIR = join(PROJECT_ROOT, "firefox");
+const MARKER_FILE = join(FIREFOX_DIR, ".version");
+
+const EDITION = "devedition";
+
+type Platform = "mac-aarch64" | "mac-x64" | "linux-x64";
+
+function detectPlatform(): Platform {
+  const arch = process.arch;
+  const platform = process.platform;
+
+  if (platform === "darwin") {
+    return arch === "arm64" ? "mac-aarch64" : "mac-x64";
+  }
+  if (platform === "linux") {
+    return "linux-x64";
+  }
+  throw new Error(`Unsupported platform: ${platform}/${arch}`);
+}
+
+function getDownloadUrl(platform: Platform): string {
+  // Developer Edition: firefox-devedition-latest-ssl
+  const product = `firefox-${EDITION}-latest-ssl`;
+  const base = `https://download.mozilla.org/?product=${product}&os=`;
+
+  switch (platform) {
+    case "mac-aarch64":
+    case "mac-x64":
+      return `${base}osx&lang=en-US`;
+    case "linux-x64":
+      return `${base}linux64&lang=en-US`;
+  }
+}
+
+/** Find Firefox .app in the directory (handles both "Firefox.app" and "Firefox Developer Edition.app") */
+function findFirefoxApp(dir: string): string | null {
+  try {
+    const entries = readdirSync(dir);
+    // Prefer Developer Edition name, fall back to Firefox.app
+    for (const name of ["Firefox Developer Edition.app", "Firefox Nightly.app", "Firefox.app"]) {
+      if (entries.includes(name)) {
+        return join(dir, name);
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function getExpectedBinary(platform: Platform): string | null {
+  if (platform.startsWith("mac")) {
+    const app = findFirefoxApp(FIREFOX_DIR);
+    if (app) return join(app, "Contents", "MacOS", "firefox");
+    // Default expected path
+    return join(FIREFOX_DIR, "Firefox.app", "Contents", "MacOS", "firefox");
+  }
+  return join(FIREFOX_DIR, "firefox", "firefox");
+}
+
+async function download(url: string, dest: string): Promise<void> {
+  console.log(`Downloading Firefox Developer Edition...`);
+  console.log(`URL: ${url}`);
+
+  const response = await fetch(url, { redirect: "follow" });
+  if (!response.ok) {
+    throw new Error(`Download failed: ${response.status} ${response.statusText}`);
+  }
+
+  const contentLength = response.headers.get("content-length");
+  const totalBytes = contentLength ? parseInt(contentLength, 10) : 0;
+
+  const reader = response.body!.getReader();
+  const chunks: Uint8Array[] = [];
+  let downloadedBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    downloadedBytes += value.byteLength;
+
+    if (totalBytes > 0) {
+      const pct = ((downloadedBytes / totalBytes) * 100).toFixed(1);
+      process.stderr.write(`\r  ${pct}% (${(downloadedBytes / 1024 / 1024).toFixed(1)} MB)`);
+    }
+  }
+  process.stderr.write("\n");
+
+  const buffer = Buffer.concat(chunks);
+  await Bun.write(dest, buffer);
+  console.log(`Saved to ${dest} (${(buffer.byteLength / 1024 / 1024).toFixed(1)} MB)`);
+}
+
+async function extractMac(dmgPath: string): Promise<string> {
+  console.log("Mounting DMG...");
+
+  const mountPoint = "/tmp/firefox-devedition-dmg";
+
+  // Unmount if leftover from previous run
+  Bun.spawnSync({ cmd: ["hdiutil", "detach", mountPoint, "-quiet", "-force"] });
+
+  const mount = Bun.spawnSync({
+    cmd: ["hdiutil", "attach", dmgPath, "-nobrowse", "-quiet", "-mountpoint", mountPoint],
+  });
+  if (mount.exitCode !== 0) {
+    throw new Error(`Failed to mount DMG: ${mount.stderr.toString()}`);
+  }
+
+  try {
+    // Find .app in DMG
+    const entries = readdirSync(mountPoint);
+    const appName = entries.find((e) => e.endsWith(".app"));
+    if (!appName) {
+      throw new Error(`No .app found in DMG. Contents: ${entries.join(", ")}`);
+    }
+
+    console.log(`Copying ${appName}...`);
+    const cp = Bun.spawnSync({
+      cmd: ["cp", "-R", join(mountPoint, appName), join(FIREFOX_DIR, appName)],
+    });
+    if (cp.exitCode !== 0) {
+      throw new Error(`Failed to copy ${appName}: ${cp.stderr.toString()}`);
+    }
+
+    return appName;
+  } finally {
+    Bun.spawnSync({ cmd: ["hdiutil", "detach", mountPoint, "-quiet"] });
+  }
+}
+
+async function extractLinux(tarPath: string): Promise<void> {
+  console.log("Extracting tar.bz2...");
+
+  const extract = Bun.spawnSync({
+    cmd: ["tar", "-xjf", tarPath, "-C", FIREFOX_DIR],
+  });
+  if (extract.exitCode !== 0) {
+    throw new Error(`Failed to extract: ${extract.stderr.toString()}`);
+  }
+}
+
+async function main(): Promise<void> {
+  const platform = detectPlatform();
+
+  // Check if already downloaded
+  if (existsSync(MARKER_FILE)) {
+    const marker = (await Bun.file(MARKER_FILE).text()).trim();
+    if (marker.startsWith(EDITION)) {
+      const binary = getExpectedBinary(platform);
+      if (binary && existsSync(binary)) {
+        console.log(`Firefox Developer Edition already installed at ${FIREFOX_DIR}`);
+        return;
+      }
+    }
+  }
+
+  console.log(`Installing Firefox Developer Edition for ${platform}...`);
+
+  // Clean old installation
+  if (existsSync(FIREFOX_DIR)) {
+    const entries = readdirSync(FIREFOX_DIR);
+    for (const entry of entries) {
+      if (entry === ".gitkeep") continue;
+      Bun.spawnSync({ cmd: ["rm", "-rf", join(FIREFOX_DIR, entry)] });
+    }
+  } else {
+    mkdirSync(FIREFOX_DIR, { recursive: true });
+  }
+
+  const url = getDownloadUrl(platform);
+  const ext = platform.startsWith("mac") ? "dmg" : "tar.bz2";
+  const tempFile = join(FIREFOX_DIR, `firefox.${ext}`);
+
+  await download(url, tempFile);
+
+  if (platform.startsWith("mac")) {
+    const appName = await extractMac(tempFile);
+    console.log(`Extracted: ${appName}`);
+  } else {
+    await extractLinux(tempFile);
+  }
+
+  // Cleanup download
+  Bun.spawnSync({ cmd: ["rm", "-f", tempFile] });
+
+  // Verify binary exists
+  const binary = getExpectedBinary(platform);
+  if (!binary || !existsSync(binary)) {
+    // List what we got
+    const contents = readdirSync(FIREFOX_DIR);
+    throw new Error(
+      `Firefox binary not found. Directory contents: ${contents.join(", ")}`
+    );
+  }
+
+  // Write version marker
+  await Bun.write(MARKER_FILE, `${EDITION}\n`);
+
+  console.log(`\nFirefox Developer Edition installed at ${binary}`);
+  console.log("This edition supports unsigned extensions (xpinstall.signatures.required = false)");
+}
+
+main().catch((err) => {
+  console.error("Failed to download Firefox:", err.message);
+  process.exit(1);
+});

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 340px;
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    background: #1a1a2e;
+    color: #e0e0e0;
+  }
+
+  /* Header */
+  .header {
+    padding: 10px 14px;
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .header h1 { font-size: 14px; font-weight: 700; color: #fff; }
+  .status {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    margin-left: auto;
+    font-weight: 600;
+  }
+  .status.connected { background: #0d904f; color: white; }
+  .status.disconnected { background: #d93025; color: white; }
+
+  /* Container list */
+  .containers { padding: 6px 8px; }
+  .container-card {
+    display: flex;
+    align-items: center;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    border-radius: 6px;
+    background: #16213e;
+    border-left: 3px solid transparent;
+    cursor: default;
+  }
+  .container-card.blue  { border-left-color: #1a73e8; }
+  .container-card.green { border-left-color: #0d904f; }
+  .container-card.orange { border-left-color: #e8710a; }
+  .container-card.red   { border-left-color: #d93025; }
+  .cinfo { flex: 1; min-width: 0; }
+  .cname { font-weight: 600; color: #fff; font-size: 13px; }
+  .crole { font-size: 11px; color: #888; margin-top: 1px; }
+  .auth-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 9px;
+    font-weight: 700;
+    vertical-align: middle;
+    margin-left: 4px;
+  }
+  .auth-badge.yes { background: #0d904f; color: white; }
+  .auth-badge.no  { background: #333; color: #888; }
+  .ctabs { font-size: 10px; color: #555; margin-right: 6px; white-space: nowrap; }
+  .cbtn {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    padding: 4px;
+    font-size: 16px;
+    line-height: 1;
+    border-radius: 4px;
+  }
+  .cbtn:hover { background: #0f3460; color: #fff; }
+  .cbtn.del:hover { color: #d93025; }
+
+  /* Add button */
+  .add-row {
+    padding: 6px 8px 8px;
+  }
+  .add-btn {
+    width: 100%;
+    padding: 7px;
+    border: 1px dashed #0f3460;
+    border-radius: 6px;
+    background: transparent;
+    color: #5a7ab5;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .add-btn:hover { background: #16213e; color: #fff; border-color: #1a73e8; }
+
+  /* Form */
+  .form-panel {
+    display: none;
+    padding: 10px 12px;
+    border-top: 1px solid #0f3460;
+    background: #111827;
+  }
+  .form-panel.visible { display: block; }
+  .form-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 10px;
+  }
+  .field { margin-bottom: 8px; }
+  .field label {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    margin-bottom: 3px;
+    font-weight: 600;
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid #0f3460;
+    border-radius: 4px;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: #1a73e8;
+  }
+  .color-row {
+    display: flex;
+    gap: 6px;
+  }
+  .color-opt {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+  }
+  .color-opt.selected { border-color: #fff; box-shadow: 0 0 4px rgba(255,255,255,0.5); }
+  .color-opt.blue   { background: #1a73e8; }
+  .color-opt.green  { background: #0d904f; }
+  .color-opt.orange { background: #e8710a; }
+  .color-opt.red    { background: #d93025; }
+
+  .form-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .btn {
+    flex: 1;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-primary { background: #1a73e8; color: white; }
+  .btn-primary:hover { background: #1557b0; }
+  .btn-cancel { background: #333; color: #ccc; }
+  .btn-cancel:hover { background: #444; }
+
+  .empty {
+    padding: 20px;
+    text-align: center;
+    color: #555;
+    font-size: 12px;
+  }
+
+  .footer {
+    padding: 6px 14px;
+    border-top: 1px solid #0f3460;
+    font-size: 10px;
+    color: #444;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>HackBrowser</h1>
+    <span class="status disconnected" id="status">offline</span>
+  </div>
+
+  <div class="containers" id="containers">
+    <div class="empty">No containers — click + to add</div>
+  </div>
+
+  <div class="add-row">
+    <button class="add-btn" id="addBtn">+ Add Container</button>
+  </div>
+
+  <div class="form-panel" id="formPanel">
+    <div class="form-title" id="formTitle">New Container</div>
+
+    <div class="field">
+      <label>Name</label>
+      <input type="text" id="fName" placeholder="Admin User">
+    </div>
+    <div class="field">
+      <label>Role</label>
+      <input type="text" id="fRole" placeholder="admin">
+    </div>
+    <div class="field">
+      <label>Color</label>
+      <div class="color-row" id="colorRow">
+        <div class="color-opt blue selected" data-color="blue"></div>
+        <div class="color-opt green" data-color="green"></div>
+        <div class="color-opt orange" data-color="orange"></div>
+        <div class="color-opt red" data-color="red"></div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-cancel" id="cancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn">Create</button>
+    </div>
+  </div>
+
+  <div class="footer">Multi-container security testing</div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

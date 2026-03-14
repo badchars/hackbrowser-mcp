@@ -1,0 +1,36 @@
+{
+  "manifest_version": 2,
+  "name": "HackBrowser",
+  "version": "1.0.0",
+  "description": "Multi-container browser for security testing",
+
+  "permissions": [
+    "contextualIdentities",
+    "cookies",
+    "tabs",
+    "webRequest",
+    "webRequestBlocking",
+    "storage",
+    "<all_urls>"
+  ],
+
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": true
+  },
+
+  "browser_action": {
+    "default_icon": {
+      "48": "icons/icon-48.svg"
+    },
+    "default_popup": "popup.html",
+    "default_title": "HackBrowser — Container Manager"
+  },
+
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "hackbrowser@hackbrowser-mcp",
+      "strict_min_version": "91.0"
+    }
+  }
+}
