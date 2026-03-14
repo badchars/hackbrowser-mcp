@@ -1,13 +1,10 @@
 <p align="center">
   <br>
-  <pre align="center">
-    ██╗  ██╗ █████╗  ██████╗██╗  ██╗██████╗ ██████╗  ██████╗ ██╗    ██╗███████╗███████╗██████╗
-    ██║  ██║██╔══██╗██╔════╝██║ ██╔╝██╔══██╗██╔══██╗██╔═══██╗██║    ██║██╔════╝██╔════╝██╔══██╗
-    ███████║███████║██║     █████╔╝ ██████╔╝██████╔╝██║   ██║██║ █╗ ██║███████╗█████╗  ██████╔╝
-    ██╔══██║██╔══██║██║     ██╔═██╗ ██╔══██╗██╔══██╗██║   ██║██║███╗██║╚════██║██╔══╝  ██╔══██╗
-    ██║  ██║██║  ██║╚██████╗██║  ██╗██████╔╝██║  ██║╚██████╔╝╚███╔███╔╝███████║███████╗██║  ██║
-    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝  ╚══╝╚══╝ ╚══════╝╚══════╝╚═╝  ╚═╝
-  </pre>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/badchars/hackbrowser-mcp/main/.github/banner-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/badchars/hackbrowser-mcp/main/.github/banner-light.svg">
+    <img alt="hackbrowser-mcp" src="https://raw.githubusercontent.com/badchars/hackbrowser-mcp/main/.github/banner-dark.svg" width="700">
+  </picture>
 </p>
 
 <h3 align="center">The first browser MCP built for security testing.</h3>
